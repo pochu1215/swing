@@ -22,7 +22,7 @@ Based on the original [Benji Bananas mobile game](https://www.youtube.com/watch?
 - **Rendering**: HTML5 Canvas API
 - **Physics**: Custom pendulum simulation
 - **Audio**: HTML5 Audio API
-- **Deployment**: Vercel
+- **Deployment**: GitHub Pages
 - **Version Control**: GitHub
 
 ## 🏗 Development Setup
@@ -43,7 +43,7 @@ cd swing
 1. Follow the step-by-step implementation guide in `DESIGN_DOCUMENT.md`
 2. Adhere to development rules in `CURSOR_RULES.md`
 3. Test locally before committing
-4. Push to `master` for automatic Vercel deployment
+4. Push to `master` for automatic GitHub Pages deployment
 
 ## 📖 Documentation
 
@@ -62,12 +62,12 @@ cd swing
 
 ## 🚀 Deployment
 
-**Live Demo**: [Coming Soon - Vercel URL]
+**Live Demo**: https://pochu1215.github.io/swing/
 
 ### Deploy Your Own
 1. Fork this repository
-2. Connect to Vercel
-3. Deploy from `master` branch
+2. Go to Settings → Pages in your GitHub repo
+3. Set Source to "Deploy from a branch" and select `master`
 4. Enjoy automatic deployments on every push!
 
 ## 🎮 How to Play

@@ -119,12 +119,13 @@
 - Push to main branch for deployment triggers
 
 #### Deployment Process
-- **Primary**: Vercel for deployment (user preference) - auto-deploy from GitHub
+- **Primary**: GitHub Pages for deployment (user preference) - auto-deploy from GitHub
 - **Repository**: https://github.com/pochu1215/swing
-- Backup: GitHub Pages for hosting
+- **Live URL**: https://pochu1215.github.io/swing/
+- Backup: Netlify or Surge.sh for hosting
 - Test deployed version on both desktop and mobile using Browser MCP
 - Ensure online version matches local development environment
-- Verify Vercel deployment URL immediately after each push
+- Verify GitHub Pages deployment URL immediately after each push
 
 ### 11. **Windows Environment Considerations**
 - **NEVER use `&&` operators** in command line operations
@@ -191,7 +192,7 @@ git add . && git commit -m "message" && git push
 - [ ] Performance is smooth (60 FPS)
 - [ ] Screenshots captured for visual regression (Browser MCP)
 - [ ] Console logs clean in live environment (Browser MCP)
-- [ ] Vercel deployment tested immediately (Browser MCP)
+- [ ] GitHub Pages deployment tested immediately (Browser MCP)
 
 ---
 
