@@ -70,13 +70,22 @@ function handleKeyUp(e) {
 
 // Handle input for vine grabbing
 function handleGrabInput() {
-  const nearestVine = findNearestVine(player.x, player.y);
-  handleGrabVine(nearestVine);
+  // Check if all required functions are available
+  if (typeof findNearestVine !== 'undefined' && typeof player !== 'undefined' && typeof handleGrabVine !== 'undefined') {
+    const nearestVine = findNearestVine(player.x, player.y);
+    handleGrabVine(nearestVine);
+  } else {
+    console.error('Missing dependencies for handleGrabInput');
+  }
 }
 
 // Handle input for vine releasing
 function handleReleaseInput() {
-  handleReleaseVine();
+  if (typeof handleReleaseVine !== 'undefined') {
+    handleReleaseVine();
+  } else {
+    console.error('Missing dependency: handleReleaseVine');
+  }
 }
 
 // Draw HUD (Head-Up Display)
@@ -96,13 +105,20 @@ function drawHUD(ctx, canvasHeight) {
   ctx.strokeText(bananaText, 10, 60);
   ctx.fillText(bananaText, 10, 60);
   
-  // Player state info
-  const stateText = player.isSwinging ? 'Swinging' : (player.isOnGround ? 'On Ground' : 'Falling');
+  // Player state info (with safety check)
+  let stateText = 'Loading...';
+  if (typeof player !== 'undefined') {
+    stateText = player.isSwinging ? 'Swinging' : (player.isOnGround ? 'On Ground' : 'Falling');
+  }
   ctx.strokeText(`State: ${stateText}`, 10, 90);
   ctx.fillText(`State: ${stateText}`, 10, 90);
   
-  // Vine count
-  const vineText = `Vines: ${getVineCount()}`;
+  // Vine count (with safety check)
+  let vineCount = 0;
+  if (typeof getVineCount !== 'undefined') {
+    vineCount = getVineCount();
+  }
+  const vineText = `Vines: ${vineCount}`;
   ctx.strokeText(vineText, 10, 120);
   ctx.fillText(vineText, 10, 120);
   

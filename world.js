@@ -34,6 +34,11 @@ function updateVines() {
   }
 }
 
+// Distance calculation helper (duplicated from physics.js for independence)
+function distance(a, b) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
 // Find nearest vine within grab range
 function findNearestVine(px, py) {
   let nearest = null;
