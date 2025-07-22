@@ -1,7 +1,7 @@
-// Benji Bananas Web Clone - Main Game Coordinator
-// Refactored: Modular Architecture
+// Benji Bananas Web Clone - REFACTORED: Clean Single-File Architecture
+// Organized by modules but kept in single file for dependency safety
 
-// Canvas and context setup
+// ==================== CANVAS AND GAME STATE ====================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -9,24 +9,54 @@ const ctx = canvas.getContext('2d');
 let gameRunning = true;
 let lastTime = 0;
 let deltaTime = 0;
+let score = 0;
+let bananas = 0;
 
 // Canvas dimensions
 let canvasWidth = 800;
 let canvasHeight = 600;
 
+// ==================== PLAYER PHYSICS MODULE ====================
+// Player (Benji) object
+const player = {
+  x: 100,
+  y: 0, // Will be set in initPlayer
+  vx: 3, // Horizontal velocity (reduced for better control)
+  vy: -2, // Start with slight upward velocity
+  radius: 20, // Simple circle for now
+  isSwinging: false,
+  swingAnchor: { x: 0, y: 0 },
+  swingLength: 0,
+  swingAngle: 0,
+  swingAngularVelocity: 0,
+  isOnGround: false
+};
+
+// ==================== WORLD MANAGEMENT MODULE ====================
+// Vines array for swinging
+let vines = [];
+
+// Input state
+let isMouseDown = false;
+let isKeyDown = false;
+
+// ==================== UTILITY FUNCTIONS ====================
+// Distance calculation helper
+function distance(a, b) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+// ==================== CANVAS MANAGEMENT ====================
 // Initialize canvas size
 function initCanvas() {
-  // Set canvas size based on window size while maintaining aspect ratio
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
   const aspectRatio = 4/3; // Target aspect ratio
   
   if (windowWidth / windowHeight > aspectRatio) {
-    // Window is wider than our aspect ratio
     canvasHeight = windowHeight;
     canvasWidth = windowHeight * aspectRatio;
   } else {
-    // Window is taller than our aspect ratio
     canvasWidth = windowWidth;
     canvasHeight = windowWidth / aspectRatio;
   }
@@ -35,7 +65,7 @@ function initCanvas() {
   canvas.height = canvasHeight;
   
   // Initialize player position
-  initPlayer(canvasHeight);
+  player.y = canvasHeight / 2;
   
   console.log(`Canvas initialized: ${canvasWidth}x${canvasHeight}`);
 }
@@ -46,45 +76,349 @@ function handleResize() {
   initCanvas();
   
   // Update player position proportionally
-  updatePlayerPosition(canvasHeight, oldCanvasHeight);
+  if (oldCanvasHeight > 0) {
+    const heightRatio = canvasHeight / oldCanvasHeight;
+    player.y *= heightRatio;
+  }
   
   console.log('Canvas resized for responsive design');
 }
 
-// Main game logic coordinator
+// ==================== PLAYER PHYSICS FUNCTIONS ====================
+// Update player physics and movement
+function updatePlayer() {
+  if (player.isSwinging) {
+    // Pendulum physics
+    player.swingAngularVelocity += (Math.sin(player.swingAngle) * -0.005); // Gravity effect
+    player.swingAngle += player.swingAngularVelocity;
+    player.x = player.swingAnchor.x + Math.sin(player.swingAngle) * player.swingLength;
+    player.y = player.swingAnchor.y + Math.cos(player.swingAngle) * player.swingLength;
+  } else {
+    // Freefall physics
+    player.vy += 0.5; // Gravity
+    player.x += player.vx;
+    player.y += player.vy;
+    
+    // Ground collision detection
+    const groundLevel = canvasHeight - 50; // Leave space at bottom for ground
+    if (player.y + player.radius > groundLevel) {
+      player.y = groundLevel - player.radius;
+      player.vy = 0;
+      player.isOnGround = true;
+      gameRunning = false;
+      console.log('Game Over: Benji hit the ground!');
+    } else {
+      player.isOnGround = false;
+    }
+    
+    // Keep player on screen horizontally
+    if (player.x < player.radius) {
+      player.x = player.radius;
+      player.vx = Math.abs(player.vx); // Bounce off left edge
+    }
+  }
+  
+  // Log player position for debugging
+  if (Math.random() < 0.01) { // Log occasionally to avoid spam
+    console.log(`Player position: (${Math.round(player.x)}, ${Math.round(player.y)}), velocity: (${Math.round(player.vx)}, ${Math.round(player.vy)}), state: ${player.isSwinging ? 'swinging' : (player.isOnGround ? 'ground' : 'falling')}`);
+  }
+}
 
-// Main game loop - coordinates all modules
+// ==================== WORLD GENERATION FUNCTIONS ====================
+// Generate vines procedurally
+function generateVines() {
+  while (vines.length < 8) {
+    const vine = {
+      x: (vines.length === 0) ? 200 : (150 + vines.length * 120), // First vine close to Benji
+      y: Math.random() * (canvasHeight * 0.4) + 30, // Upper portion of screen
+      length: 120 + Math.random() * 100
+    };
+    vines.push(vine);
+  }
+  console.log(`Generated vines. Total count: ${vines.length}`);
+}
+
+// Update vines (scroll them left)
+function updateVines() {
+  vines.forEach(vine => {
+    vine.x -= 2; // Steady scrolling speed
+  });
+  
+  const vinesBefore = vines.length;
+  vines = vines.filter(vine => vine.x > -100);
+  
+  if (vines.length < vinesBefore) {
+    console.log(`Removed ${vinesBefore - vines.length} off-screen vines`);
+  }
+}
+
+// Find nearest vine within grab range
+function findNearestVine(px, py) {
+  let nearest = null;
+  let minDistance = Infinity;
+  
+  vines.forEach(vine => {
+    const dist = distance({x: px, y: py}, vine);
+    if (dist < 150 && dist < minDistance) { // 150px grab range (increased)
+      nearest = vine;
+      minDistance = dist;
+    }
+  });
+  
+  return nearest;
+}
+
+// ==================== INPUT HANDLING FUNCTIONS ====================
+// Handle vine grabbing input
+function handleGrabVine(nearestVine) {
+  if (!player.isSwinging && !player.isOnGround && nearestVine) {
+    player.isSwinging = true;
+    player.swingAnchor = { x: nearestVine.x, y: nearestVine.y };
+    player.swingLength = distance(player, nearestVine);
+    player.swingAngle = Math.atan2(player.x - nearestVine.x, player.y - nearestVine.y);
+    player.swingAngularVelocity = player.vx / player.swingLength;
+    console.log('Benji grabbed a vine!');
+    return true;
+  }
+  return false;
+}
+
+// Handle vine releasing input
+function handleReleaseVine() {
+  if (player.isSwinging) {
+    player.isSwinging = false;
+    player.vx = Math.sin(player.swingAngle) * player.swingLength * player.swingAngularVelocity * 0.8;
+    player.vy = Math.cos(player.swingAngle) * player.swingLength * player.swingAngularVelocity * 0.8;
+    console.log('Benji released the vine!');
+    return true;
+  }
+  return false;
+}
+
+// Handle input for vine grabbing
+function handleGrabInput() {
+  const nearestVine = findNearestVine(player.x, player.y);
+  handleGrabVine(nearestVine);
+}
+
+// Handle input for vine releasing
+function handleReleaseInput() {
+  handleReleaseVine();
+}
+
+// Mouse/Touch event handlers
+function handleMouseDown(e) {
+  e.preventDefault();
+  isMouseDown = true;
+  handleGrabInput();
+}
+
+function handleMouseUp(e) {
+  e.preventDefault();
+  isMouseDown = false;
+  handleReleaseInput();
+}
+
+function handleTouchStart(e) {
+  e.preventDefault();
+  isMouseDown = true;
+  handleGrabInput();
+}
+
+function handleTouchEnd(e) {
+  e.preventDefault();
+  isMouseDown = false;
+  handleReleaseInput();
+}
+
+// Keyboard event handlers
+function handleKeyDown(e) {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!isKeyDown) {
+      isKeyDown = true;
+      handleGrabInput();
+    }
+  }
+}
+
+function handleKeyUp(e) {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    isKeyDown = false;
+    handleReleaseInput();
+  }
+}
+
+// ==================== DRAWING FUNCTIONS ====================
+// Draw background with sky gradient
+function drawBackground() {
+  ctx.fillStyle = '#90EE90'; // Light green for jungle
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight * 0.3);
+  gradient.addColorStop(0, '#87CEEB'); // Sky blue
+  gradient.addColorStop(1, '#90EE90'); // Light green
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight * 0.3);
+}
+
+// Draw ground
+function drawGround() {
+  const groundLevel = canvasHeight - 50;
+  ctx.fillStyle = '#8B4513'; // Brown ground
+  ctx.fillRect(0, groundLevel, canvasWidth, 50);
+  
+  ctx.fillStyle = '#228B22'; // Green grass
+  ctx.fillRect(0, groundLevel, canvasWidth, 10);
+}
+
+// Draw vines
+function drawVines() {
+  vines.forEach(vine => {
+    ctx.beginPath();
+    ctx.moveTo(vine.x, vine.y);
+    ctx.lineTo(vine.x, vine.y + vine.length);
+    ctx.strokeStyle = '#228B22'; // Forest green
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.arc(vine.x, vine.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#8B4513'; // Brown
+    ctx.fill();
+    
+    // Highlight nearby vines
+    const vineDistance = Math.sqrt((player.x - vine.x) ** 2 + (player.y - vine.y) ** 2);
+    if (vineDistance < 150 && !player.isSwinging) {
+      ctx.beginPath();
+      ctx.arc(vine.x, vine.y, 40, 0, Math.PI * 2);
+      ctx.strokeStyle = 'yellow';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+  });
+}
+
+// Draw player (Benji)
+function drawPlayer() {
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+  
+  if (player.isSwinging) {
+    ctx.fillStyle = '#8B4513'; // Dark brown when swinging
+  } else if (player.isOnGround) {
+    ctx.fillStyle = '#CD853F'; // Lighter brown when on ground
+  } else {
+    ctx.fillStyle = '#A0522D'; // Medium brown when falling
+  }
+  
+  ctx.fill();
+  
+  // Add simple face
+  ctx.fillStyle = 'black';
+  ctx.beginPath();
+  ctx.arc(player.x - 6, player.y - 5, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(player.x + 6, player.y - 5, 2, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.beginPath();
+  ctx.arc(player.x, player.y + 3, 8, 0, Math.PI);
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+// Draw swing rope when player is swinging
+function drawSwingRope() {
+  if (player.isSwinging) {
+    ctx.beginPath();
+    ctx.moveTo(player.swingAnchor.x, player.swingAnchor.y);
+    ctx.lineTo(player.x, player.y);
+    ctx.strokeStyle = '#8B4513'; // Brown rope
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.arc(player.swingAnchor.x, player.swingAnchor.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'red';
+    ctx.fill();
+  }
+}
+
+// Draw HUD (Head-Up Display)
+function drawHUD() {
+  ctx.fillStyle = 'white';
+  ctx.font = '20px Arial';
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 2;
+  
+  const scoreText = `Score: ${score}`;
+  ctx.strokeText(scoreText, 10, 30);
+  ctx.fillText(scoreText, 10, 30);
+  
+  const bananaText = `Bananas: ${bananas}`;
+  ctx.strokeText(bananaText, 10, 60);
+  ctx.fillText(bananaText, 10, 60);
+  
+  const stateText = player.isSwinging ? 'Swinging' : (player.isOnGround ? 'On Ground' : 'Falling');
+  ctx.strokeText(`State: ${stateText}`, 10, 90);
+  ctx.fillText(`State: ${stateText}`, 10, 90);
+  
+  const vineText = `Vines: ${vines.length}`;
+  ctx.strokeText(vineText, 10, 120);
+  ctx.fillText(vineText, 10, 120);
+  
+  ctx.font = '16px Arial';
+  const controlText = 'Click/Tap or SPACEBAR to grab vines!';
+  ctx.strokeText(controlText, 10, canvasHeight - 50);
+  ctx.fillText(controlText, 10, canvasHeight - 50);
+  
+  ctx.font = '20px Arial';
+  const statusText = 'REFACTORED: Clean Architecture';
+  ctx.strokeText(statusText, 10, canvasHeight - 20);
+  ctx.fillText(statusText, 10, canvasHeight - 20);
+}
+
+// Draw game over screen
+function drawGameOverScreen() {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  
+  ctx.fillStyle = 'white';
+  ctx.font = '48px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Game Over!', canvasWidth / 2, canvasHeight / 2 - 50);
+  ctx.font = '24px Arial';
+  ctx.fillText('Benji hit the ground!', canvasWidth / 2, canvasHeight / 2);
+  ctx.fillText('Refresh to play again', canvasWidth / 2, canvasHeight / 2 + 40);
+  ctx.textAlign = 'left';
+}
+
+// ==================== MAIN GAME LOOP ====================
 function gameLoop(currentTime) {
   if (!gameRunning) {
-    // Game over screen (from UI module)
-    drawGameOverScreen(ctx, canvasWidth, canvasHeight);
+    drawGameOverScreen();
     return;
   }
   
-  // Calculate delta time for consistent physics
   deltaTime = currentTime - lastTime;
   lastTime = currentTime;
   
-  // Draw background (from world module)
-  drawBackground(ctx, canvasWidth, canvasHeight);
-  
   // Update game objects
-  const playerStatus = updatePlayer(canvasHeight);
-  if (playerStatus === 'gameOver') {
-    gameRunning = false;
-    console.log('Game Over: Benji hit the ground!');
-    return;
-  }
-  
+  updatePlayer();
   updateVines();
-  generateVines(canvasWidth, canvasHeight);
+  generateVines();
   
-  // Draw game objects (coordinate all modules)
-  drawGround(ctx, canvasWidth, canvasHeight);
-  drawVines(ctx, player.x, player.y, player.isSwinging);
-  drawPlayer(ctx);
-  drawSwingRope(ctx);
-  drawHUD(ctx, canvasHeight);
+  // Draw everything
+  drawBackground();
+  drawGround();
+  drawVines();
+  drawPlayer();
+  drawSwingRope();
+  drawHUD();
   
   // Performance monitoring
   const fps = Math.round(1000 / deltaTime);
@@ -92,31 +426,30 @@ function gameLoop(currentTime) {
     console.warn(`Low FPS detected: ${fps}`);
   }
   
-  // Continue game loop
   requestAnimationFrame(gameLoop);
 }
 
-// Initialize game - coordinates all modules
+// ==================== INITIALIZATION ====================
 function initGame() {
-  console.log('Benji Bananas Web Clone - REFACTORED VERSION Starting...');
+  console.log('Benji Bananas Web Clone - REFACTORED: Clean Architecture Starting...');
   
-  // Initialize canvas and player
   initCanvas();
+  generateVines();
   
-  // Generate initial world
-  generateVines(canvasWidth, canvasHeight);
+  // Setup input handlers
+  canvas.addEventListener('mousedown', handleMouseDown);
+  canvas.addEventListener('mouseup', handleMouseUp);
+  canvas.addEventListener('touchstart', handleTouchStart);
+  canvas.addEventListener('touchend', handleTouchEnd);
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
   
-  // Setup input handlers (from UI module)
-  setupInputHandlers(canvas);
-  
-  // Add resize event listener
   window.addEventListener('resize', handleResize);
   
-  // Start game loop
   requestAnimationFrame(gameLoop);
   
   console.log('Game loop started - Target: 60 FPS');
-  console.log('Modular architecture: physics.js + world.js + ui.js + game.js');
+  console.log('Architecture: Single-file modular organization');
   console.log('Controls: Click/Tap or SPACEBAR to grab vines, release to let go!');
 }
 
