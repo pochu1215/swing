@@ -20,8 +20,8 @@ let canvasHeight = 600;
 const player = {
   x: 100,
   y: canvasHeight / 2,
-  vx: 5, // Horizontal velocity
-  vy: 0, // Vertical velocity
+  vx: 3, // Horizontal velocity (reduced for better control)
+  vy: -2, // Start with slight upward velocity
   radius: 20, // Simple circle for now
   isSwinging: false,
   swingAnchor: { x: 0, y: 0 },
@@ -83,9 +83,9 @@ function generateVines() {
   // Keep 5-8 vines on screen at all times
   while (vines.length < 8) {
     const vine = {
-      x: canvasWidth + Math.random() * 300 + (vines.length * 150),
-      y: Math.random() * (canvasHeight * 0.6) + 50, // Upper portion of screen
-      length: 100 + Math.random() * 150
+      x: (vines.length === 0) ? 200 : (150 + vines.length * 120), // First vine close to Benji
+      y: Math.random() * (canvasHeight * 0.4) + 30, // Upper portion of screen
+      length: 120 + Math.random() * 100
     };
     vines.push(vine);
   }
@@ -93,9 +93,9 @@ function generateVines() {
 
 // Update vines (scroll them left)
 function updateVines() {
-  // Move vines left
+  // Move vines left at a steady pace
   vines.forEach(vine => {
-    vine.x -= player.vx;
+    vine.x -= 2; // Steady scrolling speed
   });
   
   // Remove off-screen vines
@@ -124,11 +124,11 @@ function drawVines() {
     
     // Highlight nearby vines
     const distance = Math.sqrt((player.x - vine.x) ** 2 + (player.y - vine.y) ** 2);
-    if (distance < 100 && !player.isSwinging) {
+    if (distance < 150 && !player.isSwinging) {
       ctx.beginPath();
-      ctx.arc(vine.x, vine.y, 30, 0, Math.PI * 2);
+      ctx.arc(vine.x, vine.y, 40, 0, Math.PI * 2);
       ctx.strokeStyle = 'yellow';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       ctx.stroke();
     }
   });
@@ -146,7 +146,7 @@ function findNearestVine(px, py) {
   
   vines.forEach(vine => {
     const dist = distance({x: px, y: py}, vine);
-    if (dist < 100 && dist < minDistance) { // 100px grab range
+    if (dist < 150 && dist < minDistance) { // 150px grab range (increased)
       nearest = vine;
       minDistance = dist;
     }
@@ -419,7 +419,7 @@ function drawHUD() {
   
   // Game status
   ctx.font = '20px Arial';
-  const statusText = 'Step 3: Vine Swinging Complete';
+  const statusText = 'Step 3: Vine Swinging FIXED';
   ctx.strokeText(statusText, 10, canvasHeight - 20);
   ctx.fillText(statusText, 10, canvasHeight - 20);
 }
