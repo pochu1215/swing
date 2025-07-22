@@ -31,6 +31,13 @@ const player = {
   isOnGround: false
 };
 
+// Vines array for swinging
+let vines = [];
+
+// Input state
+let isMouseDown = false;
+let isKeyDown = false;
+
 // Initialize canvas size
 function initCanvas() {
   // Set canvas size based on window size while maintaining aspect ratio
@@ -69,6 +76,155 @@ function handleResize() {
   }
   
   console.log('Canvas resized for responsive design');
+}
+
+// Generate vines procedurally
+function generateVines() {
+  // Keep 5-8 vines on screen at all times
+  while (vines.length < 8) {
+    const vine = {
+      x: canvasWidth + Math.random() * 300 + (vines.length * 150),
+      y: Math.random() * (canvasHeight * 0.6) + 50, // Upper portion of screen
+      length: 100 + Math.random() * 150
+    };
+    vines.push(vine);
+  }
+}
+
+// Update vines (scroll them left)
+function updateVines() {
+  // Move vines left
+  vines.forEach(vine => {
+    vine.x -= player.vx;
+  });
+  
+  // Remove off-screen vines
+  vines = vines.filter(vine => vine.x > -100);
+  
+  // Generate new vines
+  generateVines();
+}
+
+// Draw vines
+function drawVines() {
+  vines.forEach(vine => {
+    // Draw vine rope
+    ctx.beginPath();
+    ctx.moveTo(vine.x, vine.y);
+    ctx.lineTo(vine.x, vine.y + vine.length);
+    ctx.strokeStyle = '#228B22'; // Forest green
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    
+    // Draw vine attachment point
+    ctx.beginPath();
+    ctx.arc(vine.x, vine.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#8B4513'; // Brown
+    ctx.fill();
+    
+    // Highlight nearby vines
+    const distance = Math.sqrt((player.x - vine.x) ** 2 + (player.y - vine.y) ** 2);
+    if (distance < 100 && !player.isSwinging) {
+      ctx.beginPath();
+      ctx.arc(vine.x, vine.y, 30, 0, Math.PI * 2);
+      ctx.strokeStyle = 'yellow';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  });
+}
+
+// Distance calculation helper
+function distance(a, b) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+// Find nearest vine within grab range
+function findNearestVine(px, py) {
+  let nearest = null;
+  let minDistance = Infinity;
+  
+  vines.forEach(vine => {
+    const dist = distance({x: px, y: py}, vine);
+    if (dist < 100 && dist < minDistance) { // 100px grab range
+      nearest = vine;
+      minDistance = dist;
+    }
+  });
+  
+  return nearest;
+}
+
+// Handle input for vine grabbing
+function handleGrabInput() {
+  if (!player.isSwinging && !player.isOnGround) {
+    const nearestVine = findNearestVine(player.x, player.y);
+    if (nearestVine) {
+      player.isSwinging = true;
+      player.swingAnchor = { x: nearestVine.x, y: nearestVine.y };
+      player.swingLength = distance(player, nearestVine);
+      player.swingAngle = Math.atan2(player.x - nearestVine.x, player.y - nearestVine.y);
+      player.swingAngularVelocity = player.vx / player.swingLength; // Convert horizontal momentum
+      
+      console.log('Benji grabbed a vine!');
+    }
+  }
+}
+
+// Handle input for vine releasing
+function handleReleaseInput() {
+  if (player.isSwinging) {
+    player.isSwinging = false;
+    // Convert swing momentum back to velocity
+    player.vx = Math.sin(player.swingAngle) * player.swingLength * player.swingAngularVelocity * 0.8;
+    player.vy = Math.cos(player.swingAngle) * player.swingLength * player.swingAngularVelocity * 0.8;
+    
+    console.log('Benji released the vine!');
+  }
+}
+
+// Mouse/Touch event handlers
+function handleMouseDown(e) {
+  e.preventDefault();
+  isMouseDown = true;
+  handleGrabInput();
+}
+
+function handleMouseUp(e) {
+  e.preventDefault();
+  isMouseDown = false;
+  handleReleaseInput();
+}
+
+function handleTouchStart(e) {
+  e.preventDefault();
+  isMouseDown = true;
+  handleGrabInput();
+}
+
+function handleTouchEnd(e) {
+  e.preventDefault();
+  isMouseDown = false;
+  handleReleaseInput();
+}
+
+// Keyboard event handlers
+function handleKeyDown(e) {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!isKeyDown) {
+      isKeyDown = true;
+      handleGrabInput();
+    }
+  }
+}
+
+function handleKeyUp(e) {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    isKeyDown = false;
+    handleReleaseInput();
+  }
 }
 
 // Update player physics and movement
@@ -145,6 +301,24 @@ function drawPlayer() {
   ctx.stroke();
 }
 
+// Draw swing rope when player is swinging
+function drawSwingRope() {
+  if (player.isSwinging) {
+    ctx.beginPath();
+    ctx.moveTo(player.swingAnchor.x, player.swingAnchor.y);
+    ctx.lineTo(player.x, player.y);
+    ctx.strokeStyle = '#8B4513'; // Brown rope
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    
+    // Highlight the anchor point
+    ctx.beginPath();
+    ctx.arc(player.swingAnchor.x, player.swingAnchor.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'red';
+    ctx.fill();
+  }
+}
+
 // Draw ground
 function drawGround() {
   const groundLevel = canvasHeight - 50;
@@ -191,10 +365,13 @@ function gameLoop(currentTime) {
   
   // Update game objects
   updatePlayer();
+  updateVines();
   
   // Draw game objects
   drawGround();
+  drawVines();
   drawPlayer();
+  drawSwingRope(); // Draw rope if swinging
   drawHUD();
   
   // Performance monitoring
@@ -229,8 +406,20 @@ function drawHUD() {
   ctx.strokeText(`State: ${stateText}`, 10, 90);
   ctx.fillText(`State: ${stateText}`, 10, 90);
   
+  // Vine count
+  const vineText = `Vines: ${vines.length}`;
+  ctx.strokeText(vineText, 10, 120);
+  ctx.fillText(vineText, 10, 120);
+  
+  // Controls hint
+  ctx.font = '16px Arial';
+  const controlText = 'Click/Tap or SPACEBAR to grab vines!';
+  ctx.strokeText(controlText, 10, canvasHeight - 50);
+  ctx.fillText(controlText, 10, canvasHeight - 50);
+  
   // Game status
-  const statusText = 'Step 2: Benji Physics Complete';
+  ctx.font = '20px Arial';
+  const statusText = 'Step 3: Vine Swinging Complete';
   ctx.strokeText(statusText, 10, canvasHeight - 20);
   ctx.fillText(statusText, 10, canvasHeight - 20);
 }
@@ -240,13 +429,27 @@ function initGame() {
   console.log('Benji Bananas Web Clone - Starting...');
   initCanvas();
   
+  // Generate initial vines
+  generateVines();
+  
   // Add event listeners
   window.addEventListener('resize', handleResize);
+  
+  // Mouse/Touch controls
+  canvas.addEventListener('mousedown', handleMouseDown);
+  canvas.addEventListener('mouseup', handleMouseUp);
+  canvas.addEventListener('touchstart', handleTouchStart);
+  canvas.addEventListener('touchend', handleTouchEnd);
+  
+  // Keyboard controls
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
   
   // Start game loop
   requestAnimationFrame(gameLoop);
   
   console.log('Game loop started - Target: 60 FPS');
+  console.log('Controls: Click/Tap or SPACEBAR to grab vines, release to let go!');
 }
 
 // Start the game when page loads
