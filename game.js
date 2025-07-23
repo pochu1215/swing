@@ -505,8 +505,15 @@ function restartGame() {
   vines = [];
   gameRunning = true;
   
+  // Reset camera
+  camera.x = 0;
+  camera.y = 0;
+  
   // Regenerate the world
   generateVines();
+  
+  // Restart the game loop
+  requestAnimationFrame(gameLoop);
   
   console.log('--- GAME RESTARTED ---');
 }
@@ -541,9 +548,15 @@ const camera = {
 function updateCamera() {
   // The target x position for the camera is ahead of the player to show what's coming
   const targetX = player.x - canvasWidth / 4;
+  const targetY = player.y - canvasHeight / 2; // Center the camera vertically on the player
   
   // Use linear interpolation (lerp) for smooth camera movement
   camera.x += (targetX - camera.x) * camera.lerpFactor;
+  camera.y += (targetY - camera.y) * camera.lerpFactor;
+
+  // Clamp the camera's y-position to the world boundaries
+  camera.y = Math.max(camera.y, -canvasHeight / 2);
+  camera.y = Math.min(camera.y, worldHeight - canvasHeight / 2);
 }
 
 // ==================== DRAWING FUNCTIONS ====================
@@ -553,7 +566,7 @@ function draw() {
   // Apply camera zoom and translation
   ctx.translate(canvasWidth / 2, canvasHeight / 2);
   ctx.scale(camera.zoom, camera.zoom);
-  ctx.translate(-canvasWidth / 2 - camera.x, -canvasHeight / 2);
+  ctx.translate(-canvasWidth / 2 - camera.x, -canvasHeight / 2 - camera.y);
 
   // All drawing functions are now called within the transformed context
   drawBackground();
