@@ -164,16 +164,25 @@ function updatePlayer() {
 // ==================== WORLD GENERATION FUNCTIONS ====================
 // Generate vines procedurally
 function generateVines() {
-  // VINE GENERATION 2.0: Denser, more varied, and forgiving vine placement.
+  // VINE GENERATION 2.1: Make the first vine easier to catch.
+  if (vines.length === 0) {
+    // Place the first vine in a predictable, easy-to-reach spot.
+    vines.push({
+      x: 250,
+      y: 100,
+      length: 180
+    });
+  }
+
   const vineGap = 180; // Average horizontal distance between vines
   const heightVariance = 200; // How much the vine height can vary
   const minHeight = 50; // Minimum distance from the top of the screen
 
   // Ensure there are always enough vines ahead of the player
   while (vines.length < 10) {
-    let lastVineX = vines.length > 0 ? vines[vines.length - 1].x : 150;
+    let lastVineX = vines[vines.length - 1].x;
     const newVine = {
-      x: lastVineX + vineGap + (Math.random() * 100 - 50), // Add some randomness to the gap
+      x: lastVineX + vineGap + (Math.random() * 100 - 50),
       y: minHeight + Math.random() * heightVariance,
       length: 150 + Math.random() * 100
     };
@@ -229,7 +238,10 @@ function handleGrabVine(nearestVine) {
     player.swingLength = distance(player, nearestVine);
     player.swingAngle = Math.atan2(player.x - nearestVine.x, player.y - nearestVine.y);
     player.swingAngularVelocity = player.vx / player.swingLength;
-    console.log('Benji grabbed a vine!');
+    
+    // Increment score for each new vine grabbed
+    score++;
+    console.log(`Benji grabbed a vine! Score: ${score}`);
     return true;
   }
   return false;
@@ -239,23 +251,18 @@ function handleGrabVine(nearestVine) {
 function handleReleaseVine() {
   if (player.isSwinging) {
     player.isSwinging = false;
-    // ARCADE PHYSICS: Greatly boost the release velocity for a more fun, less realistic feel.
-    // This ensures the player gains energy and momentum from each swing.
-    const boost = 1.5; // Increased boost for more power
-    const minHorizontalVelocity = 5; // Ensure player always has forward momentum
+    
+    // ARCADE PHYSICS 2.0: Add a dedicated upward lift for better trajectory control.
+    const horizontalBoost = 1.2;
+    const upwardLift = -10; // A strong upward push
 
-    let releaseVx = Math.sin(player.swingAngle) * player.swingLength * player.swingAngularVelocity * boost;
-    let releaseVy = Math.cos(player.swingAngle) * player.swingLength * player.swingAngularVelocity * boost;
-
-    // Ensure a minimum forward velocity to keep the game exciting
-    if (releaseVx < minHorizontalVelocity) {
-      releaseVx = minHorizontalVelocity;
-    }
+    let releaseVx = Math.sin(player.swingAngle) * player.swingLength * player.swingAngularVelocity * horizontalBoost;
+    let releaseVy = Math.cos(player.swingAngle) * player.swingLength * player.swingAngularVelocity + upwardLift;
 
     player.vx = releaseVx;
     player.vy = releaseVy;
 
-    console.log(`Benji released with ARCADE boost! New velocity: (${player.vx.toFixed(2)}, ${player.vy.toFixed(2)})`);
+    console.log(`Benji released with UPWARD LIFT! New velocity: (${player.vx.toFixed(2)}, ${player.vy.toFixed(2)})`);
     return true;
   }
   return false;
