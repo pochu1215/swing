@@ -100,6 +100,8 @@ function initCanvas() {
 
   canvas.width = newCanvasWidth;
   canvas.height = newCanvasHeight;
+  canvasWidth = newCanvasWidth;
+  canvasHeight = newCanvasHeight;
 
   // Center the canvas
   canvas.style.marginTop = `${(windowHeight - newCanvasHeight) / 2}px`;
