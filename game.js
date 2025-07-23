@@ -164,31 +164,31 @@ function updatePlayer() {
 // ==================== WORLD GENERATION FUNCTIONS ====================
 // Generate vines procedurally
 function generateVines() {
-  // VINE GENERATION 2.1: Make the first vine easier to catch.
+  // VINE GENERATION 3.0: Guaranteed first vine and "vine corridors" for smoother gameplay.
   if (vines.length === 0) {
-    // Place the first vine in a predictable, easy-to-reach spot.
+    // Place the first vine directly in Benji's path for an easy start.
     vines.push({
-      x: 250,
-      y: 100,
-      length: 180
+      x: player.x + 150,
+      y: player.y,
+      length: 200
     });
   }
 
-  const vineGap = 180; // Average horizontal distance between vines
-  const heightVariance = 200; // How much the vine height can vary
-  const minHeight = 50; // Minimum distance from the top of the screen
-
-  // Ensure there are always enough vines ahead of the player
-  while (vines.length < 10) {
-    let lastVineX = vines[vines.length - 1].x;
+  // Ensure there are always enough vines ahead of the player in "corridors"
+  while (vines.length < 12) { // Increased vine density
+    let lastVine = vines[vines.length - 1];
     const newVine = {
-      x: lastVineX + vineGap + (Math.random() * 100 - 50),
-      y: minHeight + Math.random() * heightVariance,
+      x: lastVine.x + 200 + (Math.random() * 100 - 50),
+      y: lastVine.y + (Math.random() * 200 - 100), // Create vertical variation
       length: 150 + Math.random() * 100
     };
+
+    // Clamp the vine's y-position to keep it on screen
+    if (newVine.y < 50) newVine.y = 50;
+    if (newVine.y > canvasHeight * 0.5) newVine.y = canvasHeight * 0.5;
+    
     vines.push(newVine);
   }
-  console.log(`Generated vines. Total count: ${vines.length}`);
 }
 
 // Update vines (scroll them left)
@@ -282,8 +282,25 @@ function handleReleaseInput() {
 // Mouse/Touch event handlers
 function handleMouseDown(e) {
   e.preventDefault();
-  isMouseDown = true;
-  handleGrabInput();
+  if (gameRunning) {
+    isMouseDown = true;
+    handleGrabInput();
+  } else {
+    // Check if the restart button was clicked
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    const buttonX = canvasWidth / 2 - 100;
+    const buttonY = canvasHeight / 2 - 25;
+    const buttonWidth = 200;
+    const buttonHeight = 50;
+    
+    if (clickX >= buttonX && clickX <= buttonX + buttonWidth &&
+        clickY >= buttonY && clickY <= buttonY + buttonHeight) {
+      restartGame();
+    }
+  }
 }
 
 function handleMouseUp(e) {
@@ -463,11 +480,42 @@ function drawGameOverScreen() {
   ctx.fillStyle = 'white';
   ctx.font = '48px Arial';
   ctx.textAlign = 'center';
-  ctx.fillText('Game Over!', canvasWidth / 2, canvasHeight / 2 - 50);
+  ctx.fillText('Game Over!', canvasWidth / 2, canvasHeight / 2 - 100);
+  
+  // Draw Restart Button
+  const buttonX = canvasWidth / 2 - 100;
+  const buttonY = canvasHeight / 2 - 25;
+  const buttonWidth = 200;
+  const buttonHeight = 50;
+  
+  ctx.fillStyle = '#4CAF50'; // Green button
+  ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+  
+  ctx.fillStyle = 'white';
   ctx.font = '24px Arial';
-  ctx.fillText('Benji hit the ground!', canvasWidth / 2, canvasHeight / 2);
-  ctx.fillText('Refresh to play again', canvasWidth / 2, canvasHeight / 2 + 40);
+  ctx.fillText('Restart', canvasWidth / 2, canvasHeight / 2 + 10);
+  
   ctx.textAlign = 'left';
+}
+
+function restartGame() {
+  // Reset player state
+  player.x = 100;
+  player.y = canvasHeight / 2;
+  player.vx = 3;
+  player.vy = -2;
+  player.isSwinging = false;
+  player.isOnGround = false;
+  
+  // Reset game state
+  score = 0;
+  vines = [];
+  gameRunning = true;
+  
+  // Regenerate the world
+  generateVines();
+  
+  console.log('--- GAME RESTARTED ---');
 }
 
 // ==================== MAIN GAME LOOP ====================
