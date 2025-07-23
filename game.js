@@ -83,23 +83,25 @@ function distance(a, b) {
 function initCanvas() {
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
-  const aspectRatio = 4/3; // Target aspect ratio
   
-  if (windowWidth / windowHeight > aspectRatio) {
-    canvasHeight = windowHeight;
-    canvasWidth = windowHeight * aspectRatio;
-  } else {
-    canvasWidth = windowWidth;
-    canvasHeight = windowWidth / aspectRatio;
+  // Set a fixed aspect ratio for the game world
+  const aspectRatio = 16 / 9;
+  
+  let newCanvasWidth = windowWidth;
+  let newCanvasHeight = windowWidth / aspectRatio;
+
+  if (newCanvasHeight > windowHeight) {
+    newCanvasHeight = windowHeight;
+    newCanvasWidth = windowHeight * aspectRatio;
   }
-  
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
-  
-  // Initialize player position
-  player.y = canvasHeight / 2;
-  
-  console.log(`Canvas initialized: ${canvasWidth}x${canvasHeight}`);
+
+  canvas.width = newCanvasWidth;
+  canvas.height = newCanvasHeight;
+
+  // Center the canvas
+  canvas.style.marginTop = `${(windowHeight - newCanvasHeight) / 2}px`;
+
+  console.log(`Canvas initialized with fixed aspect ratio: ${canvas.width}x${canvas.height}`);
 }
 
 // Resize event listener for responsive design
@@ -120,10 +122,8 @@ function handleResize() {
 // Update player physics and movement
 function updatePlayer() {
   if (player.isSwinging) {
-    // When swinging, the player's horizontal velocity contributes to the world scrolling,
-    // but the player themselves pivots around a fixed point.
-    updateBackground();
-    updateVines();
+    // Apply a damping factor to gradually reduce swing momentum
+    player.swingAngularVelocity *= 0.99; 
 
     // Pendulum physics
     player.swingAngularVelocity += (Math.sin(player.swingAngle) * -0.005); // Gravity effect
@@ -252,17 +252,17 @@ function handleReleaseVine() {
   if (player.isSwinging) {
     player.isSwinging = false;
     
-    // ARCADE PHYSICS 2.0: Add a dedicated upward lift for better trajectory control.
-    const horizontalBoost = 1.2;
-    const upwardLift = -10; // A strong upward push
+    // ARCADE PHYSICS 3.0: Normalized release kick for consistent power.
+    const horizontalKick = player.swingAngularVelocity * 80; // Scaled kick
+    const verticalKick = -15; // A strong, consistent upward push
 
-    let releaseVx = Math.sin(player.swingAngle) * player.swingLength * player.swingAngularVelocity * horizontalBoost;
-    let releaseVy = Math.cos(player.swingAngle) * player.swingLength * player.swingAngularVelocity + upwardLift;
+    player.vx += horizontalKick;
+    player.vy = verticalKick;
 
-    player.vx = releaseVx;
-    player.vy = releaseVy;
+    // Clamp max velocity to prevent flying off-screen
+    player.vx = Math.min(player.vx, 20);
 
-    console.log(`Benji released with UPWARD LIFT! New velocity: (${player.vx.toFixed(2)}, ${player.vy.toFixed(2)})`);
+    console.log(`Benji released with NORMALIZED KICK! New velocity: (${player.vx.toFixed(2)}, ${player.vy.toFixed(2)})`);
     return true;
   }
   return false;
@@ -518,6 +518,25 @@ function restartGame() {
   console.log('--- GAME RESTARTED ---');
 }
 
+// Consolidate click/touch handling for the restart button
+function handleRestartClick(e) {
+  if (gameRunning) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const clickX = (e.clientX || e.touches[0].clientX) - rect.left;
+  const clickY = (e.clientY || e.touches[0].clientY) - rect.top;
+
+  const buttonX = canvasWidth / 2 - 100;
+  const buttonY = canvasHeight / 2 - 25;
+  const buttonWidth = 200;
+  const buttonHeight = 50;
+
+  if (clickX >= buttonX && clickX <= buttonX + buttonWidth &&
+      clickY >= buttonY && clickY <= buttonY + buttonHeight) {
+    restartGame();
+  }
+}
+
 // ==================== MAIN GAME LOOP ====================
 function gameLoop(currentTime) {
   if (!gameRunning) {
@@ -563,6 +582,10 @@ function initGame() {
   canvas.addEventListener('mouseup', handleMouseUp);
   canvas.addEventListener('touchstart', handleTouchStart);
   canvas.addEventListener('touchend', handleTouchEnd);
+
+  // Add a single event listener for the restart button
+  canvas.addEventListener('click', handleRestartClick);
+  
   document.addEventListener('keydown', handleKeyDown);
   document.addEventListener('keyup', handleKeyUp);
   
