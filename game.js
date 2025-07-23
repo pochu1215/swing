@@ -1,6 +1,9 @@
 // Benji Bananas Web Clone - REFACTORED: Clean Single-File Architecture
 // Organized by modules but kept in single file for dependency safety
 
+// ==================== WORLD CONSTANTS ====================
+const worldHeight = 2000; // The total height of our jungle world
+
 // ==================== CANVAS AND GAME STATE ====================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -185,7 +188,7 @@ function generateVines() {
 
     // Clamp the vine's y-position to keep it on screen
     if (newVine.y < 50) newVine.y = 50;
-    if (newVine.y > canvasHeight * 0.5) newVine.y = canvasHeight * 0.5;
+    if (newVine.y > worldHeight - 200) newVine.y = worldHeight - 200;
     
     vines.push(newVine);
   }
@@ -341,16 +344,9 @@ function handleKeyUp(e) {
 }
 
 // ==================== DRAWING FUNCTIONS ====================
-// Draw background with sky gradient
-function drawBackground() {
-  ctx.fillStyle = '#90EE90'; // Light green for jungle
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-  
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight * 0.3);
-  gradient.addColorStop(0, '#87CEEB'); // Sky blue
-  gradient.addColorStop(1, '#90EE90'); // Light green
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight * 0.3);
+// Duplicate drawBackground function replaced to avoid overriding
+function drawBackgroundOld() {
+  // Intentionally left blank.
 }
 
 // Draw ground
