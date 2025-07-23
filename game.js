@@ -164,13 +164,20 @@ function updatePlayer() {
 // ==================== WORLD GENERATION FUNCTIONS ====================
 // Generate vines procedurally
 function generateVines() {
-  while (vines.length < 8) {
-    const vine = {
-      x: (vines.length === 0) ? 200 : (150 + vines.length * 120), // First vine close to Benji
-      y: Math.random() * (canvasHeight * 0.4) + 30, // Upper portion of screen
-      length: 120 + Math.random() * 100
+  // VINE GENERATION 2.0: Denser, more varied, and forgiving vine placement.
+  const vineGap = 180; // Average horizontal distance between vines
+  const heightVariance = 200; // How much the vine height can vary
+  const minHeight = 50; // Minimum distance from the top of the screen
+
+  // Ensure there are always enough vines ahead of the player
+  while (vines.length < 10) {
+    let lastVineX = vines.length > 0 ? vines[vines.length - 1].x : 150;
+    const newVine = {
+      x: lastVineX + vineGap + (Math.random() * 100 - 50), // Add some randomness to the gap
+      y: minHeight + Math.random() * heightVariance,
+      length: 150 + Math.random() * 100
     };
-    vines.push(vine);
+    vines.push(newVine);
   }
   console.log(`Generated vines. Total count: ${vines.length}`);
 }
@@ -232,11 +239,23 @@ function handleGrabVine(nearestVine) {
 function handleReleaseVine() {
   if (player.isSwinging) {
     player.isSwinging = false;
-    // Add a "fun" boost to the release velocity for better game feel
-    const boost = 1.2;
-    player.vx = Math.sin(player.swingAngle) * player.swingLength * player.swingAngularVelocity * boost;
-    player.vy = Math.cos(player.swingAngle) * player.swingLength * player.swingAngularVelocity * boost;
-    console.log('Benji released the vine with a boost!');
+    // ARCADE PHYSICS: Greatly boost the release velocity for a more fun, less realistic feel.
+    // This ensures the player gains energy and momentum from each swing.
+    const boost = 1.5; // Increased boost for more power
+    const minHorizontalVelocity = 5; // Ensure player always has forward momentum
+
+    let releaseVx = Math.sin(player.swingAngle) * player.swingLength * player.swingAngularVelocity * boost;
+    let releaseVy = Math.cos(player.swingAngle) * player.swingLength * player.swingAngularVelocity * boost;
+
+    // Ensure a minimum forward velocity to keep the game exciting
+    if (releaseVx < minHorizontalVelocity) {
+      releaseVx = minHorizontalVelocity;
+    }
+
+    player.vx = releaseVx;
+    player.vy = releaseVy;
+
+    console.log(`Benji released with ARCADE boost! New velocity: (${player.vx.toFixed(2)}, ${player.vy.toFixed(2)})`);
     return true;
   }
   return false;
