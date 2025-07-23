@@ -474,31 +474,24 @@ function drawHUD() {
 
 // Draw game over screen
 function drawGameOverScreen() {
+  // Show the HTML restart button
+  document.getElementById('restartButton').style.display = 'block';
+  
+  // Draw the semi-transparent overlay
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
   
+  // Draw the "Game Over!" text
   ctx.fillStyle = 'white';
   ctx.font = '48px Arial';
   ctx.textAlign = 'center';
   ctx.fillText('Game Over!', canvasWidth / 2, canvasHeight / 2 - 100);
-  
-  // Draw Restart Button
-  const buttonX = canvasWidth / 2 - 100;
-  const buttonY = canvasHeight / 2 - 25;
-  const buttonWidth = 200;
-  const buttonHeight = 50;
-  
-  ctx.fillStyle = '#4CAF50'; // Green button
-  ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-  
-  ctx.fillStyle = 'white';
-  ctx.font = '24px Arial';
-  ctx.fillText('Restart', canvasWidth / 2, canvasHeight / 2 + 10);
-  
-  ctx.textAlign = 'left';
 }
 
 function restartGame() {
+  // Hide the HTML restart button
+  document.getElementById('restartButton').style.display = 'none';
+
   // Reset player state
   player.x = 100;
   player.y = canvasHeight / 2;
@@ -537,6 +530,44 @@ function handleRestartClick(e) {
   }
 }
 
+// ==================== CAMERA AND VIEWPORT ====================
+const camera = {
+  x: 0,
+  y: 0,
+  zoom: 0.8, // Zoom out for a wider view
+  lerpFactor: 0.05 // How smoothly the camera follows the player
+};
+
+function updateCamera() {
+  // The target x position for the camera is ahead of the player to show what's coming
+  const targetX = player.x - canvasWidth / 4;
+  
+  // Use linear interpolation (lerp) for smooth camera movement
+  camera.x += (targetX - camera.x) * camera.lerpFactor;
+}
+
+// ==================== DRAWING FUNCTIONS ====================
+function draw() {
+  ctx.save();
+  
+  // Apply camera zoom and translation
+  ctx.translate(canvasWidth / 2, canvasHeight / 2);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.translate(-canvasWidth / 2 - camera.x, -canvasHeight / 2);
+
+  // All drawing functions are now called within the transformed context
+  drawBackground();
+  drawVines();
+  drawGround();
+  drawPlayer();
+  drawSwingRope();
+  
+  ctx.restore();
+  
+  // The HUD is drawn outside the transformed context so it stays fixed on the screen
+  drawHUD();
+}
+
 // ==================== MAIN GAME LOOP ====================
 function gameLoop(currentTime) {
   if (!gameRunning) {
@@ -552,14 +583,10 @@ function gameLoop(currentTime) {
   updateVines();
   generateVines();
   updateBackground();
+  updateCamera(); // Update camera position
 
   // Draw everything
-  drawBackground();
-  drawGround();
-  drawVines();
-  drawPlayer();
-  drawSwingRope();
-  drawHUD();
+  draw();
   
   // Performance monitoring
   const fps = Math.round(1000 / deltaTime);
