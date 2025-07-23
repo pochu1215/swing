@@ -36,6 +36,38 @@ const player = {
 // Vines array for swinging
 let vines = [];
 
+// ==================== PARALLAX BACKGROUND ====================
+const backgroundLayers = [
+  { image: null, speed: 0.2, x: 0, color: '#b0e0e6' }, // Farthest, light blue
+  { image: null, speed: 0.5, x: 0, color: '#87ceeb' }, // Middle, sky blue
+  { image: null, speed: 1.0, x: 0, color: '#2e8b57' }  // Closest, sea green (like trees)
+];
+
+function updateBackground() {
+  backgroundLayers.forEach(layer => {
+    // The background moves opposite to the player's perceived direction
+    layer.x -= player.vx * layer.speed;
+    // Reset the position when an image scrolls completely off-screen to create a seamless loop
+    if (layer.x < -canvasWidth) {
+      layer.x = 0;
+    }
+  });
+}
+
+function drawBackground() {
+  // Draw solid base color first
+  ctx.fillStyle = '#87ceeb'; // Base sky color
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  // Draw each parallax layer
+  backgroundLayers.forEach(layer => {
+    ctx.fillStyle = layer.color;
+    // We draw two images for each layer to create a seamless loop
+    ctx.fillRect(layer.x, 0, canvasWidth, canvasHeight);
+    ctx.fillRect(layer.x + canvasWidth, 0, canvasWidth, canvasHeight);
+  });
+}
+
 // Input state
 let isMouseDown = false;
 let isKeyDown = false;
@@ -88,6 +120,11 @@ function handleResize() {
 // Update player physics and movement
 function updatePlayer() {
   if (player.isSwinging) {
+    // When swinging, the player's horizontal velocity contributes to the world scrolling,
+    // but the player themselves pivots around a fixed point.
+    updateBackground();
+    updateVines();
+
     // Pendulum physics
     player.swingAngularVelocity += (Math.sin(player.swingAngle) * -0.005); // Gravity effect
     player.swingAngle += player.swingAngularVelocity;
@@ -98,7 +135,7 @@ function updatePlayer() {
     player.vy += 0.5; // Gravity
     player.x += player.vx;
     player.y += player.vy;
-    
+
     // Ground collision detection
     const groundLevel = canvasHeight - 50; // Leave space at bottom for ground
     if (player.y + player.radius > groundLevel) {
@@ -110,14 +147,14 @@ function updatePlayer() {
     } else {
       player.isOnGround = false;
     }
-    
+
     // Keep player on screen horizontally
     if (player.x < player.radius) {
       player.x = player.radius;
       player.vx = Math.abs(player.vx); // Bounce off left edge
     }
   }
-  
+
   // Log player position for debugging
   if (Math.random() < 0.01) { // Log occasionally to avoid spam
     console.log(`Player position: (${Math.round(player.x)}, ${Math.round(player.y)}), velocity: (${Math.round(player.vx)}, ${Math.round(player.vy)}), state: ${player.isSwinging ? 'swinging' : (player.isOnGround ? 'ground' : 'falling')}`);
@@ -187,9 +224,11 @@ function handleGrabVine(nearestVine) {
 function handleReleaseVine() {
   if (player.isSwinging) {
     player.isSwinging = false;
-    player.vx = Math.sin(player.swingAngle) * player.swingLength * player.swingAngularVelocity * 0.8;
-    player.vy = Math.cos(player.swingAngle) * player.swingLength * player.swingAngularVelocity * 0.8;
-    console.log('Benji released the vine!');
+    // Add a "fun" boost to the release velocity for better game feel
+    const boost = 1.2;
+    player.vx = Math.sin(player.swingAngle) * player.swingLength * player.swingAngularVelocity * boost;
+    player.vy = Math.cos(player.swingAngle) * player.swingLength * player.swingAngularVelocity * boost;
+    console.log('Benji released the vine with a boost!');
     return true;
   }
   return false;
@@ -411,7 +450,8 @@ function gameLoop(currentTime) {
   updatePlayer();
   updateVines();
   generateVines();
-  
+  updateBackground();
+
   // Draw everything
   drawBackground();
   drawGround();

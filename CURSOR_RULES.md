@@ -78,6 +78,7 @@
 
 #### Browser MCP Testing Integration
 - **Use Browser MCP for comprehensive testing workflow:**
+  - **Mandatory 5-Run Test:** After each deployment, perform at least five full gameplay loops (from start to "Game Over!") to test stability and consistency.
   - Navigate to live game URL during development
   - Take screenshots for visual regression testing
   - Test touch interactions using browser dev tools
