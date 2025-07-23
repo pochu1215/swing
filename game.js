@@ -178,14 +178,22 @@ function generateVines() {
 // Update vines (scroll them left)
 function updateVines() {
   vines.forEach(vine => {
-    vine.x -= 2; // Steady scrolling speed
+    // Only scroll vines if the player is not swinging
+    if (!player.isSwinging) {
+      vine.x -= player.vx;
+    }
   });
-  
+
   const vinesBefore = vines.length;
   vines = vines.filter(vine => vine.x > -100);
-  
+
   if (vines.length < vinesBefore) {
     console.log(`Removed ${vinesBefore - vines.length} off-screen vines`);
+  }
+
+  // Regenerate vines only if needed
+  if (vines.length < 8) {
+    generateVines();
   }
 }
 
